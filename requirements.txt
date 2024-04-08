@@ -2,3 +2,9 @@ ffmpeg-python
 moviepy
 imageio_ffmpeg
 scenedetect
+opencv-python
+torchvision
+gradio
+scipy
+fire
+ezsynth

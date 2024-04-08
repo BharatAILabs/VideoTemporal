@@ -1,47 +1,19 @@
 from __future__ import annotations
-import math
-import random
-import sys
-from argparse import ArgumentParser
-from collections import namedtuple, deque
-import einops
+from PIL import Image
+from collections import namedtuple
 import gradio as gr
 import numpy as np
-import torch
-import torch.nn as nn
-from einops import rearrange
-from omegaconf import OmegaConf
-from PIL import Image, ImageOps
-from torch import autocast
 import os
 import shutil
-import time
-import stat
 import gradio as gr
-import modules.extras
-from modules.ui_components import FormRow, FormGroup, ToolButton, FormHTML
-from modules.ui import  create_sampler_and_steps_selection
-import json
-from modules.sd_samplers import samplers, samplers_for_img2img
 import re
-import modules.images as images
-from modules.call_queue import wrap_gradio_gpu_call, wrap_queued_call, wrap_gradio_call
-from modules import ui_extra_networks, devices, shared, scripts, script_callbacks, sd_hijack_unet, sd_hijack_utils
-from modules.shared import opts, cmd_opts, OptionInfo
-from pathlib import Path
-from typing import List, Tuple
-from PIL.ExifTags import TAGS
-from PIL.PngImagePlugin import PngImageFile, PngInfo
-from datetime import datetime
-from modules.generation_parameters_copypaste import quote
-from copy import deepcopy
-import platform
+from modules import shared, script_callbacks
 import modules.generation_parameters_copypaste as parameters_copypaste
 import scripts.Berry_Method as General_SD
 import glob
 import base64
 import io
-import scripts.Ebsynth_Processing as ebsynth
+import scripts.Ebsynth_Processing as ebsynth_process
 import scripts.berry_utility as sd_utility
 
 
@@ -142,7 +114,7 @@ def post_process_ebsynth(input_folder,video,fps,per_side,output_resolution,batch
     print(len(images))
     split_mode = os.path.join(input_folder, "keys")
     if os.path.exists(split_mode):
-        return ebsynth.sort_into_folders(video_path=video,fps=fps,per_side=per_side,batch_size=batch_size,_smol_resolution=output_resolution,square_textures=images,max_frames=max_frames,output_folder=input_folder,border=border_frames)
+        return ebsynth_process.sort_into_folders(video_path=video,fps=fps,per_side=per_side,batch_size=batch_size,_smol_resolution=output_resolution,square_textures=images,max_frames=max_frames,output_folder=input_folder,border=border_frames)
     else:
         img_folder = os.path.join(input_folder, "output")
         # define a regular expression pattern to match directory names with one or more digits
@@ -172,14 +144,14 @@ def post_process_ebsynth(input_folder,video,fps,per_side,output_resolution,batch
                 print(f"saving {os.path.join(input_images_folder, img_name)}")
                 square_textures.append(np.array(img))
 
-            ebsynth.sort_into_folders(video_path=folder_video, fps=fps, per_side=per_side, batch_size=batch_size,
+            ebsynth_process.sort_into_folders(video_path=folder_video, fps=fps, per_side=per_side, batch_size=batch_size,
                                     _smol_resolution=output_resolution, square_textures=square_textures,
                                     max_frames=max_frames, output_folder=os.path.dirname(folder_video),
                                     border=border_frames)
 
 def recombine_ebsynth(input_folder,fps,border_frames,batch):
     if os.path.exists(os.path.join(input_folder, "keys")):
-        return ebsynth.crossfade_folder_of_folders(input_folder,fps=fps,return_generated_video_path=True)
+        return ebsynth_process.crossfade_folder_of_folders(input_folder,fps=fps,return_generated_video_path=True)
     else:
         generated_videos = []
         pattern = r'^\d+$'
@@ -193,7 +165,7 @@ def recombine_ebsynth(input_folder,fps,border_frames,batch):
         for d in numeric_dirs:
             folder_loc = os.path.join(input_folder,d)
             # loop through each image file in the image folder
-            new_video =  ebsynth.crossfade_folder_of_folders(folder_loc,fps=fps)
+            new_video =  ebsynth_process.crossfade_folder_of_folders(folder_loc,fps=fps)
             #print(f"generated new video at location {new_video}")
             generated_videos.append(new_video)
         
@@ -382,7 +354,7 @@ def create_video_Processing_Tab():
                                 with gr.Row():
                                     savesettings = gr.Button("Save Settings") 
                                 with gr.Row():
-                                    batch_folder = gr.Textbox(label="Target Folder",placeholder="This is ignored if neither batch run or ebsynth are checked")
+                                    batch_folder = gr.Textbox(label="Target Folder",placeholder="This is ignored if neither batch run or ebsynth_process are checked")
 
                                 with gr.Row():
                                     with gr.Accordion("Batch Settings",open=False):
@@ -535,8 +507,8 @@ def create_ebsynth_tab():
                                 max_frames = gr.Number(label="max frames",value=100,precision=1)
                                 border_frames = gr.Number(value=1, label="Border Frames", precision=1, interactive=True,placeholder="border frames")
                             with gr.Row():
-                                runButton = gr.Button("prepare ebsynth", elem_id="run_button")
-                                recombineButton = gr.Button("recombine ebsynth", elem_id="recombine_button")
+                                runButton = gr.Button("prepare ebsynth_process", elem_id="run_button")
+                                recombineButton = gr.Button("recombine ebsynth_process", elem_id="recombine_button")
             with gr.Tabs(elem_id="mode_TemporalKit"):
                 with gr.Row():
                     with gr.Tab(elem_id="input_diffuse", label="Output"):
@@ -577,30 +549,6 @@ def on_ui_tabs():
                     with gr.Blocks(analytics_enabled=False):          
                         create_ebsynth_tab()
         return (temporalkit, "Temporal-Kit", "TemporalKit"),
-
-
-
-def generate(
-    input_image: Image.Image,
-    instruction: str,
-    steps: int,
-    randomize_seed: bool,
-    seed: int,
-    randomize_cfg: bool,
-    text_cfg_scale: float,
-    image_cfg_scale: float,
-    negative_prompt: str,
-    batch_number: int,
-    scale: int,
-    batch_in_check,
-    batch_in_dir,
-    sampler
-    ):
-        
-    model = shared.sd_model
-    model.eval().to(shared.device)
-    
-    animated_gifs = []
 
 
 def on_ui_settings():

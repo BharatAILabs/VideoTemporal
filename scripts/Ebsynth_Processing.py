@@ -1,34 +1,17 @@
 import os
-import glob
-#om nom nom nom
-import requests
-import json
-from pprint import pprint
-import base64
 import numpy as np
-from io import BytesIO
-import extensions.TemporalKit.scripts.berry_utility
-import scripts.optical_flow_simple as opflow
-from PIL import Image, ImageOps,ImageFilter
-import io
-from collections import deque
+from PIL import Image
 import cv2
 import scripts.Berry_Method as bmethod
 import scripts.berry_utility as butility
 import re
-
-
 
 def sort_into_folders(video_path, fps, per_side, batch_size, _smol_resolution,square_textures,max_frames,output_folder,border):
     border = 0
     per_batch_limmit = (((per_side * per_side) * batch_size)) + border
 
     frames = []
-  #  original_frames_directory = os.path.join(output_folder, "original_frames")
-  #  if os.path.exists(original_frames_directory):
-  #      for filename in os.listdir(original_frames_directory):
-  #          frames.append(cv2.imread(os.path.join(original_frames_directory, filename), cv2.COLOR_BGR2RGB))
-  #  else:
+
     video_data = bmethod.convert_video_to_bytes(video_path)
     frames = butility.extract_frames_movpie(video_data, fps, max_frames)
     
@@ -113,9 +96,7 @@ def recombine (video_path, fps, per_side, batch_size, fillindenoise, edgedenoise
     combined = bmethod.merge_image_batches(just_frame_groups, border)
 
     save_loc = os.path.join(output_folder, "non_blended.mp4")
-    generated_vid = extensions.TemporalKit.scripts.berry_utility.pil_images_to_video(combined,save_loc, fps)
-
-
+    generated_vid = butility.pil_images_to_video(combined,save_loc, fps)
 
 
 def crossfade_folder_of_folders(output_folder, fps,return_generated_video_path=False):
@@ -191,7 +172,7 @@ def crossfade_folder_of_folders(output_folder, fps,return_generated_video_path=F
 
     print (f"outputting {len(output_images)} images")
     output_save_location = os.path.join(output_folder, "crossfade.mp4")
-    generated_vid = extensions.TemporalKit.scripts.berry_utility.pil_images_to_video(output_images, output_save_location, fps)
+    generated_vid = butility.pil_images_to_video(output_images, output_save_location, fps)
      
     if return_generated_video_path == True:
         return generated_vid
